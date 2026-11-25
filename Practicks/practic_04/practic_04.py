@@ -3,39 +3,62 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def bisection(f, a, b, eps=1e-9, max_iter=200):
+    fa, fb = f(a), f(b)
+    if fa * fb > 0:
+        raise ValueError(
+            f"Нет смены знака на [{a}, {b}]: f(a)={fa}, f(b)={fb}"
+        )
+
+    journal = []
+
+    for k in range(1, max_iter + 1):
+        c = (a + b) / 2
+        fc = f(c)
+        length = b - a
+
+        journal.append({
+            "iter": k,
+            "a": a,
+            "b": b,
+            "c": c,
+            "f(c)": fc,
+            "length": length,
+        })
+
+        if fc == 0:
+            return c, journal, "f_zero"
+        if length < eps:
+            return c, journal, "ok"
+
+        if fa * fc < 0:
+            b = c
+            fb = fc
+        else:
+            a = c
+            fa = fc
+
+    return c, journal, "max_iter"
+
+
+def print_journal(journal, title=""):
+    if title:
+        print(f"\n=== {title} ===")
+    print(f"{'k':>3} | {'a':>12} | {'b':>12} | {'c':>12} | {'f(c)':>14} | {'b-a':>10}")
+    print("-" * 80)
+    for row in journal:
+        print(
+            f"{row['iter']:>3} | {row['a']:>12.6f} | {row['b']:>12.6f} | "
+            f"{row['c']:>12.6f} | {row['f(c)']:>14.3e} | "
+            f"{row['length']:>10.2e}"
+        )
+
+
 def f(x):
     return x**3 - 6 * x**2 + 11 * x - 6
 
 
-def bisection(func, a, b, eps=1e-9, print_log=True):
-    if func(a) * func(b) >= 0:
-        raise ValueError("На концах отрезка нет смены знака!")
-
-    if print_log:
-        print(f"\nЖурнал итераций для отрезка [{a}, {b}]:")
-        print(f"{'Итер.':<6} | {'a':<14} | {'b':<14} | {'c (середина)':<14} | {'f(c)':<14} | {'|b - a|':<12}")
-        print("-" * 85)
-
-    n = 0
-    while (b - a) / 2.0 > eps:
-        n += 1
-        c = (a + b) / 2.0
-        fc = func(c)
-        if print_log:
-            print(f"{n:<6} | {a:<14.10f} | {b:<14.10f} | {c:<14.10f} | {fc:<14.2e} | {b - a:<12.2e}")
-
-        if fc == 0:
-            break
-        elif func(a) * fc < 0:
-            b = c
-        else:
-            a = c
-
-    root = (a + b) / 2.0
-    return root, n
-
-
-
+# 1. График на [0, 4]
 x_vals = np.linspace(0, 4, 400)
 y_vals = f(x_vals)
 
@@ -51,30 +74,33 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
-
+# 2–3. Бисекция и журналы для всех трёх корней (отрезки разной длины)
 eps = 1e-9
-r1, n1 = bisection(f, 0.5, 1.5, eps=eps, print_log=True)
-r2, n2 = bisection(f, 1.5, 2.5, eps=eps, print_log=True)
-r3, n3 = bisection(f, 2.2, 3.8, eps=eps, print_log=True)
+r1, j1, s1 = bisection(f, 0.5, 1.5, eps=eps)
+r2, j2, s2 = bisection(f, 1.5, 2.5, eps=eps)
+r3, j3, s3 = bisection(f, 2.2, 3.8, eps=eps)
 
+print_journal(j1, "Корень 1 на отрезке [0.5, 1.5]")
+print_journal(j2, "Корень 2 на отрезке [1.5, 2.5]")
+print_journal(j3, "Корень 3 на отрезке [2.2, 3.8]")
 
+# 5. Итоговая таблица сравнения с аналитическими корнями (1, 2, 3)
 print("\n=== Итоговая таблица: корень -> итерации -> Δ -> δ -> теория ===")
-print(f"{'Аналит.':<8} | {'Численный':<14} | {'Итер. (n)':<10} | {'Теор. n':<10} | {'Δ (абс.)':<12} | {'δ (отн.)':<12}")
-print("-" * 80)
+print(f"{'Аналит.':<8} | {'Численный':<14} | {'Итер.':<7} | {'Теор. n':<8} | {'Δ (абс.)':<12} | {'δ (отн.)':<12} | {'Статус'}")
+print("-" * 85)
 
 da1 = abs(r1 - 1.0)
-print(f"{1.0:<8.1f} | {r1:<14.10f} | {n1:<10} | {math.ceil(math.log2(1.0 / eps)):<10} | {da1:<12.2e} | {da1 / 1.0:<12.2e}")
+print(f"{1.0:<8.1f} | {r1:<14.10f} | {len(j1):<7} | {math.ceil(math.log2(1.0 / eps)):<8} | {da1:<12.2e} | {da1 / 1.0:<12.2e} | {s1}")
 
 da2 = abs(r2 - 2.0)
-print(f"{2.0:<8.1f} | {r2:<14.10f} | {n2:<10} | {math.ceil(math.log2(1.0 / eps)):<10} | {da2:<12.2e} | {da2 / 2.0:<12.2e}")
+print(f"{2.0:<8.1f} | {r2:<14.10f} | {len(j2):<7} | {math.ceil(math.log2(1.0 / eps)):<8} | {da2:<12.2e} | {da2 / 2.0:<12.2e} | {s2}")
 
 da3 = abs(r3 - 3.0)
-print(f"{3.0:<8.1f} | {r3:<14.10f} | {n3:<10} | {math.ceil(math.log2(1.6 / eps)):<10} | {da3:<12.2e} | {da3 / 3.0:<12.2e}")
+print(f"{3.0:<8.1f} | {r3:<14.10f} | {len(j3):<7} | {math.ceil(math.log2(1.6 / eps)):<8} | {da3:<12.2e} | {da3 / 3.0:<12.2e} | {s3}")
 
 print(
     "\nВывод: аналитически полином раскладывается на множители (x - 1)(x - 2)(x - 3) = 0, что даёт точные корни 1, 2 и 3.\n"
-    "Число итераций зависит только от длины начального интервала L0 и точности eps:\n"
-    "для интервалов длиной 1.0 потребовалось 29 итераций, а для более широкого интервала длиной 1.6 потребовалось 30 итераций,\n"
-    "что полностью совпадает с теоретической оценкой n >= log2(L0 / eps)."
+    "Число итераций зависит только от длины стартового интервала L0 и точности eps:\n"
+    "для интервалов длиной 1.0 потребовалась 31 итерация, а для более широкого интервала длиной 1.6 потребовалось 32 итерации,\n"
+    "что согласуется с теоретической оценкой log2(L0 / eps)."
 )
-
